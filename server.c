@@ -1,792 +1,930 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdbool.h>
-#include <string.h>
-#include <pthread.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<unistd.h>
+#include<stdbool.h>
+#include<string.h>
+#include<fcntl.h>
+#include<pthread.h>
 
-typedef struct normal_user{
+//Basic Account Structures
+typedef struct normalUser
+{
 	int userID;
 	char name[30];
 	char password[10];
-	int account_num;
-	float acc_balance;
+	int account_no;
+	float balance;
 	char status[20];
-}normal_user;
+}normalUser;
 
-typedef struct joint_user{
+typedef struct jointUser
+{
 	int userID;
 	char name1[30];
 	char name2[30];
 	char password[10];
-	int account_num;
-	float acc_balance;
+	int account_no;
+	float balance;
 	char status[20];
-}joint_user;
+}jointUser;
 
-typedef struct administrator{
+typedef struct admin
+{
 	int userID;
 	char username[30];
 	char password[10];
-}administrator;
+}admin;
 
-normal_user getNormalUser(int ID){
-	int i = ID - 1000;
-	normal_user current_user;
-	int fd = open("Normal_User_file", O_RDONLY, 0744);
-	int fl1;
+//Same Procedure has been carried out to get the details of different type of Accounts
+
+normalUser getNU(int ID)
+{
+	int realid=ID-10000;
+	normalUser User;
+	int fd=open("NormalUserdb",O_RDONLY,0744);
+	
+	//Record File Locking (in Read Mode)
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(normal_user);
-	lock.l_len = sizeof(normal_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-	read(fd, &current_user, sizeof(normal_user));
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(normalUser); 
+	if(lseek(fd, 0 , SEEK_END) <= lock.l_start)
+	{
+		User.account_no =-1;
+		User.balance = -1;
+		User.userID = -1;
+		return(User);
+	}   	     
+	lock.l_len=sizeof(normalUser);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock); //Sat the Lock	
+
+	lseek(fd,(realid)*sizeof(normalUser),SEEK_SET); //Getting to the UserInfo Location 
+	read(fd,&User,sizeof(normalUser));
+
+	lock.l_type=F_UNLCK; //Unlocked it
+	fcntl(fd,F_SETLK,&lock);
+
 	close(fd);
-	return current_user;
+	return User;
 }
 
-joint_user getJointUser(int ID){
-	int i = ID - 1000;
-	joint_user current_user;
-	int fd = open("Joint_User_file", O_RDONLY, 0744);
-	int fl1;
+jointUser getJU(int ID)
+{
+	int realid=ID-10000;
+	jointUser User;
+	int fd=open("JointUserdb",O_RDONLY,0744);
+	
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(joint_user);
-	lock.l_len = sizeof(joint_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-	read(fd, &current_user, sizeof(joint_user));
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(jointUser);    
+	if(lseek(fd, 0 , SEEK_END) <= lock.l_start)
+	{
+		User.account_no =-1;
+		User.balance = -1;
+		User.userID = -1;
+		return(User);
+	}  	     
+	lock.l_len=sizeof(jointUser);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	lseek(fd,(realid)*sizeof(jointUser),SEEK_SET); 
+	read(fd,&User,sizeof(jointUser));
+
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+
 	close(fd);
-	return current_user;
+	return User;
 }
 
-administrator getAdmin(int ID){
-	int i = ID-1000;
-	administrator current_user;
-	int fd = open("Admin_file", O_RDONLY, 0744);
-	int fl1;
+admin getAdmin(int ID)
+{
+	int realid=ID-10000;
+	admin User;
+	int fd=open("Admindb",O_RDONLY,0744);
+
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(administrator);
-	lock.l_len = sizeof(administrator);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd,(i)*sizeof(administrator), SEEK_SET);
-	read(fd, &current_user, sizeof(administrator));
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(admin);    	     
+	lock.l_len=sizeof(admin);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	lseek(fd,(realid)*sizeof(admin),SEEK_SET);  
+	read(fd,&User,sizeof(admin));
+
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+
 	close(fd);
-	return current_user;
+	return User;
 }
-/**
- * Checks if normal user account exists by verifying password and account status 
- */
-bool check_normal_user(normal_user current_user){
-	int i = current_user.userID - 1000;
-	int fd = open("Normal_User_file", O_RDONLY, 0744);
+
+//Same procedure has been done for normal, joint and admin accounts for authentication
+
+bool authenticateNU(normalUser user)
+{
+	int realid = user.userID-10000;
+	int fd = open("NormalUserdb",O_RDONLY,0744);
+
 	bool result;
-	normal_user temp;
-	int fl1;
+	normalUser temp;
+
+	//Record Locking(Read) for reading the user's credentials
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(normal_user);
-	lock.l_len = sizeof(normal_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-	read(fd, &temp, sizeof(normal_user));
-	if(!strcmp(temp.password, current_user.password) && !strcmp(temp.status, "ACTIVE"))	
-		result = true;
-	else						
-		result = false;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(normalUser);    	     
+	lock.l_len=sizeof(normalUser);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	//Locked the Record
 
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lseek(fd,(realid)*sizeof(normalUser),SEEK_SET);  
+	read(fd,&temp,sizeof(normalUser));
+	if(!strcmp(temp.password,user.password) && !strcmp(temp.status,"ACTIVE"))	result=true;
+	else	result=false;
+
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock); //Unlocked the record
+
 	close(fd);
 	return result;
 }
-/**
- * Checks if joint user account exists by verifying password and account status 
- */
-bool check_joint_user(joint_user current_user){
-	int i = current_user.userID - 1000;
-	int fd = open("Joint_User_file", O_RDONLY, 0744);
+
+bool authenticateJU(jointUser user)
+{
+	int realid=user.userID-10000;
+	int fd=open("JointUserdb",O_RDONLY,0744);
 	bool result;
-	joint_user temp;
-	int fl1;
+	jointUser temp;
+	
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(joint_user);
-	lock.l_len = sizeof(joint_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-	read(fd, &temp, sizeof(joint_user));
-	if(!strcmp(temp.password, current_user.password) && !strcmp(temp.status, "ACTIVE"))	
-		result = true;
-	else						
-		result = false;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(jointUser);    	     
+	lock.l_len=sizeof(jointUser);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
 
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lseek(fd,(realid)*sizeof(jointUser),SEEK_SET);  
+	read(fd,&temp,sizeof(jointUser));
+	if(!strcmp(temp.password,user.password) && !strcmp(temp.status,"ACTIVE"))	result=true;
+	else		result=false;
+
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+
 	close(fd);
 	return result;
 }
-/**
- * Checks if administrator exists by verifying password
- */
-bool check_admin(administrator current_user){
-	int i = current_user.userID - 1000;
-	int fd = open("Admin_file", O_RDONLY, 0744);
+
+bool authenticateAdmin(admin user)
+{
+	int realid=user.userID-10000;
+	int fd = open("Admindb",O_RDONLY,0744);
 	bool result;
-	administrator temp;
-	int fl1;
+	admin temp;
+	
 	struct flock lock;
 	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(administrator);
-	lock.l_len = sizeof(administrator);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	lseek(fd, (i)*sizeof(administrator), SEEK_SET);
-	read(fd, &temp, sizeof(administrator));
-	if(!strcmp(temp.password, current_user.password))	
-		result = true;
-	else						
-		result = false;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(admin);    	   
+	lock.l_len=sizeof(admin);	            
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
 
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	lseek(fd,(realid)*sizeof(admin),SEEK_SET);  
+	read(fd,&temp,sizeof(admin));
+	if(!strcmp(temp.password,user.password))	result=true;
+	else		result=false;
+
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+
 	close(fd);
 	return result;
 }
-/**
- * Money will be deposited only if account status is active
- */
-bool deposit_money(int account_type, int ID, float amt){
-	int i = ID - 1000;
-	if(account_type == 1){ //type 1 refers to normal user account
-		int fd = open("Normal_User_file", O_RDWR, 0744);
+
+bool depositMoney(int accType,int ID,float amt)
+{
+	int realid=ID-10000;
+	if(accType==1)
+	{
+		int fd=open("NormalUserdb",O_RDWR,0744);
 		bool result;
-		int fl1;
+
 		struct flock lock;
 		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(normal_user);
-		lock.l_len = sizeof(normal_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		normal_user current_user;
-		lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-		read(fd, &current_user, sizeof(normal_user));
-		if(!strcmp(current_user.status, "ACTIVE")){
-			current_user.acc_balance += amt;
-			lseek(fd, sizeof(normal_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(normal_user));
-			result = true;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(normalUser);  
+		lock.l_len=sizeof(normalUser);	             
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+
+		normalUser User;
+		lseek(fd,(realid)*sizeof(normalUser),SEEK_SET);  
+		read(fd,&User,sizeof(normalUser));
+		
+		if(!strcmp(User.status,"ACTIVE")) //Checking the Status of the Account
+		{
+			User.balance += amt;
+			lseek(fd,sizeof(normalUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(normalUser)); //Rewriting the Details
+			result=true;
 		}
-		else	
-			result =false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
 
 		close(fd);
 		return result;		
 	}
-	else if(account_type == 2){ //type 2 refers to joint user account
-		int fd = open("Joint_User_file", O_RDWR, 0744);
+	else if(accType==2)
+	{
+		int fd=open("JointUserdb",O_RDWR,0744);
 		bool result;
-		int fl1;
-		struct flock lock;
-		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(joint_user);
-		lock.l_len = sizeof(joint_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		joint_user current_user;
-		lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-		read(fd, &current_user, sizeof(joint_user));
-		if(!strcmp(current_user.status, "ACTIVE")){
-			current_user.acc_balance += amt;
-			lseek(fd, sizeof(joint_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(joint_user));
-			result = true;
-		}
-		else	
-			result = false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
-		close(fd);
-		return result;	
-	}
-	return false;
-}
-/**
- * Money can be withdrawn only if account is still active and current account balance exceeds the amount to be withdrawn
- */
-bool withdraw_money(int account_type, int ID, float amt){
-	int i = ID - 1000;
-	if(account_type == 1){ //type 1 refers to normal user account
-		int fd = open("Normal_User_file", O_RDWR, 0744);
-		bool result;
-		int fl1;
-		struct flock lock;
-		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(normal_user);
-		lock.l_len = sizeof(normal_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		normal_user current_user;
-		lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-		read(fd, &current_user, sizeof(normal_user));
-		if(!strcmp(current_user.status, "ACTIVE") && current_user.acc_balance >= amt){
-			current_user.acc_balance -= amt;
-			lseek(fd, sizeof(normal_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(normal_user));
-			result = true;
-		}
-		else	
-			result = false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
-		close(fd);
-		return result;	
-	}
-	else if(account_type == 2){ //type 2 refers to joint user account
-		int fd = open("Joint_User_file", O_RDWR, 0744);
-		bool result;
-		int fl1;
-		struct flock lock;
-		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(joint_user);
-		lock.l_len = sizeof(joint_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		joint_user current_user;
-		lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-		read(fd, &current_user, sizeof(joint_user));
-		if(!strcmp(current_user.status, "ACTIVE") && current_user.acc_balance >= amt){
-			current_user.acc_balance -= amt;
-			lseek(fd, sizeof(joint_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(joint_user));
-			result = true;
-		}
-		else	
-			result = false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
-		close(fd);
-		return result;
-	}
-	return false;
-}
-/**
- * Account balance can be checked only if account is still active
- */
-float get_account_balance(int account_type, int ID){
-	int i = ID - 1000;
-	float result;
-	if(account_type == 1){ //type 1 refers to normal user account
-		int i = ID - 1000;
-		int fd = open("Normal_User_file", O_RDONLY, 0744);
-		normal_user temp;
-		int fl1;
-		struct flock lock;
-		lock.l_type = F_RDLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(normal_user);
-		lock.l_len = sizeof(normal_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd,F_SETLKW,&lock);
-		lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-		read(fd, &temp, sizeof(normal_user));
-		if(!strcmp(temp.status, "ACTIVE"))	
-			result = temp.acc_balance;
-		else					
-			result = 0;
 
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
+		struct flock lock;
+		lock.l_type = F_WRLCK;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(jointUser);    
+		lock.l_len=sizeof(jointUser);	             
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+
+		jointUser User;
+		lseek(fd,(realid)*sizeof(jointUser),SEEK_SET);  
+		read(fd,&User,sizeof(jointUser));
+		
+		if(!strcmp(User.status,"ACTIVE"))
+		{
+			User.balance += amt;
+			lseek(fd,sizeof(jointUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(jointUser));
+			result=true;
+		}
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
+		close(fd);
+		return result;	
+	}
+	return false;
+}
+
+bool withdrawMoney(int accType,int ID,float amt)
+{
+	int realid=ID-10000;
+	if(accType==1)
+	{
+		int fd=open("NormalUserdb",O_RDWR,0744);
+		bool result;
+	
+		struct flock lock;
+		//Write Record Lock
+		lock.l_type = F_WRLCK;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(normalUser);   
+		lock.l_len=sizeof(normalUser);	             
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+	
+
+		normalUser User;
+		lseek(fd,(realid)*sizeof(normalUser),SEEK_SET);  
+		read(fd,&User,sizeof(normalUser));
+		
+		if(!strcmp(User.status,"ACTIVE") && User.balance>=amt) //Checking whether the amount can be withdrawn or not
+		{
+			User.balance-=amt; //Reducing the Amount
+			lseek(fd,sizeof(normalUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(normalUser));
+			result=true;
+		}
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
+		close(fd);
+		return result;	
+	}
+	else if(accType==2)
+	{
+		int fd=open("JointUserdb",O_RDWR,0744);
+		bool result;
+	
+		struct flock lock;
+		lock.l_type = F_WRLCK;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(jointUser);    
+		lock.l_len=sizeof(jointUser);	            
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);
+
+		jointUser User;
+		lseek(fd,(realid)*sizeof(jointUser),SEEK_SET); 
+		read(fd,&User,sizeof(jointUser));
+		
+		if(!strcmp(User.status,"ACTIVE") && User.balance>=amt)
+		{
+			User.balance-=amt;
+			lseek(fd,sizeof(jointUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(jointUser));
+			result=true;
+		}
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
 		close(fd);
 		return result;
 	}
-	else if(account_type == 2){ //type 2 refers to joint user account
-		int i = ID - 1000;
-		int fd = open("Joint_User_file", O_RDONLY, 0744);
-		joint_user temp;
-		int fl1;
+	return false;
+}
+
+float getBalance(int accType,int ID)
+{
+	int realid=ID-10000;
+	float result;
+	if(accType==1)
+	{
+		int fd=open("NormalUserdb",O_RDONLY,0744);
+		normalUser User;
+		//Normal Read Lock
 		struct flock lock;
 		lock.l_type = F_RDLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(joint_user);
-		lock.l_len = sizeof(joint_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-		read(fd, &temp, sizeof(joint_user));
-		if(!strcmp(temp.status, "ACTIVE"))	
-			result = temp.acc_balance;
-		else					
-			result = 0;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(normalUser);    	   
+		lock.l_len=sizeof(normalUser);	            
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+
+		lseek(fd,(realid)*sizeof(normalUser),SEEK_SET); 
+		read(fd,&User,sizeof(normalUser));
+		//Reading the Balance
+		if(!strcmp(User.status,"ACTIVE"))	result=User.balance;
+		else		result=0;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
 		close(fd);
 		return result;
 	}
+	else if(accType==2)
+	{
+		int fd=open("JointUserdb",O_RDONLY,0744);
+		jointUser User;
+	
+		struct flock lock;
+		lock.l_type = F_RDLCK;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(jointUser);    	     
+		lock.l_len=sizeof(jointUser);	            
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+
+		lseek(fd,(realid)*sizeof(jointUser),SEEK_SET); 
+		read(fd,&User,sizeof(jointUser));
+		//Reading the Balance
+		if(!strcmp(User.status,"ACTIVE"))	result=User.balance;
+		else		result=0;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
+		close(fd);
+		return result;
+	} 
 	return 0;
 }
-/**
- * Account password can be changed only if account is active 
- */
-bool change_password(int account_type, int ID, char new_passwrd[10]){
-	int i = ID - 1000;
-	if(account_type == 1){ //type 1 refers to normal user account
-		int fd = open("Normal_User_file", O_RDWR, 0744);
+
+bool alterPassword(int accType,int ID,char newPwd[10])
+{
+	int realid=ID-10000;
+	if(accType==1)
+	{
+		int fd=open("NormalUserdb",O_RDWR,0744);
 		bool result;
-		int fl1;
+
 		struct flock lock;
 		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(normal_user);
-		lock.l_len = sizeof(normal_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		normal_user current_user;
-		lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-		read(fd, &current_user, sizeof(normal_user));
-		if(!strcmp(current_user.status, "ACTIVE")){
-			strcpy(current_user.password, new_passwrd);
-			lseek(fd, sizeof(normal_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(normal_user));
-			result = true;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(normalUser);    
+		lock.l_len=sizeof(normalUser);	             
+		lock.l_pid=getpid();
+	
+		fcntl(fd,F_SETLKW,&lock);	
+
+		normalUser User;
+		lseek(fd,(realid)*sizeof(normalUser),SEEK_SET);  
+		read(fd,&User,sizeof(normalUser));
+		
+		if(!strcmp(User.status,"ACTIVE"))
+		{
+			strcpy(User.password,newPwd);
+			lseek(fd,sizeof(normalUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(normalUser));
+			result=true;
 		}
-		else	
-			result = false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
 		close(fd);
 		return result;
 	}
-	else if(account_type == 2){ //type 2 refers to joint user account
-		int fd = open("Joint_User_file", O_RDWR, 0744);
+	else if(accType==2)
+	{
+		int fd=open("JointUserdb",O_RDWR,0744);
 		bool result;
 		int fl1;
 		struct flock lock;
 		lock.l_type = F_WRLCK;
-		lock.l_whence = SEEK_SET;
-		lock.l_start = (i)*sizeof(joint_user);
-		lock.l_len = sizeof(joint_user);
-		lock.l_pid = getpid();
-		fl1 = fcntl(fd, F_SETLKW, &lock);
-		joint_user current_user;
-		lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-		read(fd, &current_user, sizeof(joint_user));
-		if(!strcmp(current_user.status, "ACTIVE")){
-			strcpy(current_user.password, new_passwrd);
-			lseek(fd, sizeof(joint_user)*(-1), SEEK_CUR);
-			write(fd, &current_user, sizeof(joint_user));
-			result = true;
+		lock.l_whence=SEEK_SET;
+		lock.l_start=(realid)*sizeof(jointUser);    
+		lock.l_len=sizeof(jointUser);	            
+		lock.l_pid=getpid();
+	
+		fl1=fcntl(fd,F_SETLKW,&lock);	
+
+		jointUser User;
+		lseek(fd,(realid)*sizeof(jointUser),SEEK_SET);  
+		read(fd,&User,sizeof(jointUser));
+		
+		if(!strcmp(User.status,"ACTIVE"))
+		{
+			strcpy(User.password,newPwd);
+			lseek(fd,sizeof(jointUser)*(-1),SEEK_CUR);
+			write(fd,&User,sizeof(jointUser));
+			result=true;
 		}
-		else	
-			result = false;
-		lock.l_type = F_UNLCK;
-		fcntl(fd, F_SETLK, &lock);
+		else	result=false;
+
+		lock.l_type=F_UNLCK;
+		fcntl(fd,F_SETLK,&lock);
+
 		close(fd);
 		return result;
 	}
 	return false;
 }
-/**
- * Administrator can add a normal user account 
- */
-bool addNormalUser(normal_user record){
-	int fd = open("Normal_User_file", O_RDWR, 0744);
+
+bool addNormalUser(normalUser record)
+{
+	int fd=open("NormalUserdb",O_RDWR,0744); //We have to create a New Normal User
 	bool result;
-	int fl1;
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_END;
-	lock.l_start = (-1)*sizeof(normal_user);
-	lock.l_len = sizeof(normal_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	normal_user endUser;
-	lseek(fd, (-1)*sizeof(normal_user), SEEK_END);
-	read(fd, &endUser, sizeof(normal_user));
-	record.userID = endUser.userID + 1;
-	record.account_num = endUser.account_num + 1;
-	strcpy(record.status, "ACTIVE");
-	int j = write(fd, &record, sizeof(normal_user));
-	if(j!=0)	
-		result = true;
-	else	
-		result = false;
 	
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
-	close(fd);
-	return result;	
-}
-/**
- * Administrator can add joint user account
- */
-bool addJointUser(joint_user record){
-	int fd = open("Joint_User_file", O_RDWR, 0744);
-	bool result;
-	int fl1;
 	struct flock lock;
 	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_END;
-	lock.l_start = (-1)*sizeof(joint_user);
-	lock.l_len = sizeof(joint_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	joint_user endUser;
-	lseek(fd, (-1)*sizeof(joint_user), SEEK_END);
-	read(fd, &endUser, sizeof(joint_user));
-	record.userID = endUser.userID + 1;
-	record.account_num = endUser.account_num + 1;
-	strcpy(record.status, "ACTIVE");
-	int j = write(fd, &record, sizeof(joint_user));
-	if(j!=0)	
-		result = true;
-	else	
-		result = false;
+	lock.l_whence=SEEK_END;
+	lock.l_start=(-1)*sizeof(normalUser);  //Only Last Record is being Locked
+	lock.l_len=sizeof(normalUser);	         
+	lock.l_pid=getpid();
 	
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
-	close(fd);
-	return result;	
-}
-/**
- * Administrator can delete a normal user account
- */
-bool deleteNormalUser(int ID){
-	int i = ID - 1000;
-	int fd = open("Normal_User_file", O_RDWR, 0744);
-	bool result;
-	int fl1;
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(normal_user);
-	lock.l_len = sizeof(normal_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	normal_user current_user;
-	lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-	read(fd, &current_user, sizeof(normal_user));
-	if(!strcmp(current_user.status, "ACTIVE")){	
-		strcpy(current_user.status, "CLOSED");
-		current_user.acc_balance = 0;
-		lseek(fd, (-1)*sizeof(normal_user), SEEK_CUR); 
-		int j = write(fd, &current_user, sizeof(normal_user));
-		if(j!=0)	
-			result = true;
-		else		
-			result = false;
-	}
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
-	close(fd);
-	return result;	
-}
-/**
- * Administrator can delete a joint user account
- */
-bool delete_joint_user(int ID){
-	int i = ID - 1000;
-	int fd = open("Joint_User_file", O_RDWR, 0744);
-	bool result;
-	int fl1;
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(joint_user);
-	lock.l_len = sizeof(joint_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	joint_user current_user;
-	lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-	read(fd, &current_user, sizeof(joint_user));
-	if(!strcmp(current_user.status, "ACTIVE")){	
-		strcpy(current_user.status, "CLOSED");
-		current_user.acc_balance = 0;
-		lseek(fd, (-1)*sizeof(joint_user), SEEK_CUR); 
-		int j = write(fd, &current_user, sizeof(joint_user));
-		if(j!=0)	
-			result = true;
-		else		
-			result = false;
-	}
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
-	close(fd);
-	return result;	
-}
-/**
- * Administrator a normal user account only if it's active and account number matches(modified one and current)
- */
-bool modify_normal_user(normal_user modi_user){
-	int i = modi_user.userID - 1000;
-	int fd = open("Normal_User_file", O_RDWR, 0744);
-	bool result = false;
-	int fl1;
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(normal_user);
-	lock.l_len = sizeof(normal_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	normal_user current_user;
-	lseek(fd, (i)*sizeof(normal_user), SEEK_SET);
-	read(fd, &current_user, sizeof(normal_user));
-	if(!strcmp(current_user.status, "ACTIVE") && (modi_user.account_num == current_user.account_num)){	
-		strcpy(modi_user.status, "ACTIVE");
-		lseek(fd, (-1)*sizeof(normal_user), SEEK_CUR); 
-		int j = write(fd, &modi_user, sizeof(normal_user));
-		if(j!=0)	
-			result = true;
-		else		
-			result = false;
-	}
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
-	close(fd);
-	return result;	
-}
-/**
- * Administrator a joint user account only if it's active and account number matches(modified one and current)
- */
-bool modify_joint_user(joint_user modi_user){
-	int i = modi_user.userID - 1000;
-	int fd = open("Joint_User_file", O_RDWR, 0744);
-	bool result = false;
-	int fl1;
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = (i)*sizeof(joint_user);
-	lock.l_len = sizeof(joint_user);
-	lock.l_pid = getpid();
-	fl1 = fcntl(fd, F_SETLKW, &lock);
-	joint_user current_user;
-	lseek(fd, (i)*sizeof(joint_user), SEEK_SET);
-	read(fd, &current_user, sizeof(joint_user));
-	if(!strcmp(current_user.status, "ACTIVE")  && (modi_user.account_num == current_user.account_num)){	
-		strcpy(modi_user.status, "ACTIVE");
-		lseek(fd, (-1)*sizeof(joint_user), SEEK_CUR); 
-		int j = write(fd, &modi_user, sizeof(joint_user));
-		if(j!=0)	
-			result = true;
-		else		
-			result = false;
-	}
-	lock.l_type = F_UNLCK;
-	fcntl(fd, F_SETLK, &lock);
+	fcntl(fd,F_SETLKW,&lock);	
+	
+	normalUser User;
+	lseek(fd,(-1)*sizeof(normalUser),SEEK_END);  
+	read(fd,&User,sizeof(normalUser));
+		
+	record.userID=User.userID+1; //Creating new userID and AccID
+	record.account_no=User.account_no+1;
+	strcpy(record.status,"ACTIVE");
+	
+	int j=write(fd,&record,sizeof(normalUser)); //Checking whether it got written
+	if(j!=0)	result=true;
+	else	result=false;
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
 	close(fd);
 	return result;	
 }
 
-void serverTask(int new_server_desc){
-	int msgLength, select, type, option, account_type, current_user_ID;
+bool addJointUser(jointUser record)
+{
+	int fd=open("JointUserdb",O_RDWR,0744);
 	bool result;
-	while(1){
-		read(new_server_desc, &option, sizeof(option));
-		printf("Option : %d\n", option);
-		if(option == 1){ //option 1 refers to normal user
-			normal_user currUser1;
-			account_type = 1;
-			msgLength = read(new_server_desc, &currUser1, sizeof(normal_user));
-			printf("Username: %d\n", currUser1.userID);
-			printf("Password: %s\n", currUser1.password);
-			current_user_ID = currUser1.userID;
-			result = check_normal_user(currUser1);
-			write(new_server_desc, &result, sizeof(result));
-		}
-		else if(option == 2){ //option 2 refers to joint user account
-			joint_user currUser2;
-			account_type = 2;
-			msgLength = read(new_server_desc, &currUser2, sizeof(joint_user));
-			current_user_ID = currUser2.userID;
-			printf("Username: %d\n", currUser2.userID);
-			printf("Password: %s\n", currUser2.password);
-			result = check_joint_user(currUser2);
-			write(new_server_desc, &result, sizeof(result));
-		}
-		else if(option == 3){ //option 3 refers to administrator
-			administrator currUser3;
-			account_type = 3;
-			msgLength = read(new_server_desc, &currUser3, sizeof(administrator));
-			current_user_ID = currUser3.userID;
-			printf("Username: %d\n", currUser3.userID);
-			printf("Password: %s\n", currUser3.password);
-			result = check_admin(currUser3);
-			write(new_server_desc, &result, sizeof(result));
-		}
-		else{
-			result = false;
-			write(new_server_desc, &result, sizeof(result));
-		}
-		if(result)	
-			break;		
+	
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence=SEEK_END;
+	lock.l_start=(-1)*sizeof(jointUser);    
+	lock.l_len=sizeof(jointUser);	           
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	jointUser User;
+	lseek(fd,(-1)*sizeof(jointUser),SEEK_END);  
+	read(fd,&User,sizeof(jointUser));
+		
+	record.userID=User.userID+1;
+	record.account_no=User.account_no+1;
+	strcpy(record.status,"ACTIVE");
+	
+	int j=write(fd,&record,sizeof(jointUser)); 
+	if(j!=0)	result=true;
+	else	result=false;
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
+	close(fd);
+	return result;	
+}
+
+bool deleteNormalUser(int ID)
+{
+	int realid=ID-10000;
+	int fd=open("NormalUserdb",O_RDWR,0744);
+	bool result;
+
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(normalUser);    
+	lock.l_len=sizeof(normalUser);	           
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	normalUser User;
+	lseek(fd,(realid)*sizeof(normalUser),SEEK_SET); 
+	read(fd,&User,sizeof(normalUser));
+	
+	if(!strcmp(User.status,"ACTIVE"))
+	{	
+		strcpy(User.status,"CLOSED");
+		User.balance=0;
+		lseek(fd,(-1)*sizeof(normalUser),SEEK_CUR); 
+		//Rewriting the Structure
+		int j=write(fd,&User,sizeof(normalUser));
+		if(j!=0)	result=true;
+		else		result=false;
 	}
-	while(1){
-		read(new_server_desc, &select, sizeof(int));
-		if(option == 1 || option == 2){
-			if(select == 1){ //menu to choose what to be done, deposit; withdraw; password change; account details
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
+	close(fd);
+	return result;	
+}
+
+bool deleteJointUser(int ID)
+{
+	int realid=ID-10000;
+	int fd=open("JointUserdb",O_RDWR,0744);
+	bool result;
+	
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(jointUser);    
+	lock.l_len=sizeof(jointUser);	            
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	jointUser User;
+	lseek(fd,(realid)*sizeof(jointUser),SEEK_SET); 
+	read(fd,&User,sizeof(jointUser));
+	
+	if(!strcmp(User.status,"ACTIVE"))
+	{	
+		strcpy(User.status,"CLOSED");
+		User.balance=0;
+		
+		lseek(fd,(-1)*sizeof(jointUser),SEEK_CUR); 
+		int j=write(fd,&User,sizeof(jointUser));
+		if(j!=0)	result=true;
+		else		result=false;
+	}
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
+	close(fd);
+	return result;	
+}
+
+bool modifyNormalUser(normalUser modUser)
+{
+	int realid=modUser.userID-10000;
+	int fd=open("NormalUserdb",O_RDWR,0744);
+	bool result=false;
+	
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(normalUser);   
+	lock.l_len=sizeof(normalUser);	             
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	normalUser User;
+	lseek(fd,(realid)*sizeof(normalUser),SEEK_SET);  
+	read(fd,&User,sizeof(normalUser));
+	
+	if(!strcmp(User.status,"ACTIVE") && (modUser.account_no==User.account_no))
+	{	
+		strcpy(modUser.status,"ACTIVE");
+		lseek(fd,(-1)*sizeof(normalUser),SEEK_CUR); 
+		//Rewriting
+		int j=write(fd,&modUser,sizeof(normalUser));
+		if(j!=0)	result=true;
+		else		result=false;
+	}
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
+	close(fd);
+	return result;	
+}
+
+bool modifyJointUser(jointUser modUser)
+{
+	int realid=modUser.userID-10000;
+	int fd=open("JointUserdb",O_RDWR,0744);
+	bool result=false;
+	
+	struct flock lock;
+	lock.l_type = F_WRLCK;
+	lock.l_whence=SEEK_SET;
+	lock.l_start=(realid)*sizeof(jointUser);   
+	lock.l_len=sizeof(jointUser);	           
+	lock.l_pid=getpid();
+	
+	fcntl(fd,F_SETLKW,&lock);	
+
+	jointUser User;
+	lseek(fd,(realid)*sizeof(jointUser),SEEK_SET); 
+	read(fd,&User,sizeof(jointUser));
+	
+	if(!strcmp(User.status,"ACTIVE")  && (modUser.account_no==User.account_no))
+	{	
+		strcpy(modUser.status,"ACTIVE");
+		lseek(fd,(-1)*sizeof(jointUser),SEEK_CUR); 
+		int j=write(fd,&modUser,sizeof(jointUser));
+		if(j!=0)	result=true;
+		else		result=false;
+	}
+	
+	lock.l_type=F_UNLCK;
+	fcntl(fd,F_SETLK,&lock);
+	
+	close(fd);
+	return result;	
+}
+
+void provideService(int nsd)
+{
+	int len, option2, type, choice, acctype, userID;
+	bool check;
+	while(1)
+	{
+		read(nsd, &choice, sizeof(choice));
+		printf("Option Selected: %d\n",choice);
+
+		if(choice==1)
+		{
+			normalUser user1;
+			acctype=1;
+			len=read(nsd,&user1,sizeof(normalUser));
+			printf("User's Credentials\nUsername : %d\n",user1.userID);
+			printf("Password : %s\n",user1.password);
+			userID=user1.userID;
+			check=authenticateNU(user1);
+			write(nsd,&check,sizeof(check));
+		}
+		else if(choice==2)
+		{
+			jointUser user2;
+			acctype=2;
+			len=read(nsd,&user2,sizeof(jointUser));
+			userID=user2.userID;
+			printf("User's Credentials\nUsername : %d\n",user2.userID);
+			printf("Password : %s\n",user2.password);
+			check=authenticateJU(user2);
+			write(nsd,&check,sizeof(check));
+		}
+		else if(choice==3)
+		{
+			admin user3;
+			acctype=3;
+			len=read(nsd,&user3,sizeof(admin));
+			userID=user3.userID;
+			printf("User's Credentials\nUsername : %d\n",user3.userID);
+			printf("Password : %s\n",user3.password);
+			check=authenticateAdmin(user3);
+			write(nsd,&check,sizeof(check));
+		}
+		else
+		{
+			check=false;
+			write(nsd,&check,sizeof(check));
+		}
+
+		if(check)	break;		
+	}
+
+	while(1)
+	{
+		read(nsd,&option2,sizeof(int));
+		//NOrmal or JOint Account
+		if(choice==1 || choice==2)
+		{
+			if(option2==1)
+			{
 				float amt;
-				read(new_server_desc, &amt, sizeof(float));
-				result = deposit_money(account_type, current_user_ID, amt);
-				write(new_server_desc, &result, sizeof(result));
+				read(nsd,&amt,sizeof(float));
+				check = depositMoney(acctype,userID,amt);
+				write(nsd,&check,sizeof(check));
 			}
-			else if(select == 2){
+			else if(option2==2)
+			{
 				float amt;
-				read(new_server_desc, &amt, sizeof(float));
-				result = withdraw_money(account_type, current_user_ID, amt);
-				write(new_server_desc, &result, sizeof(result));
+				read(nsd,&amt,sizeof(float));
+				check = withdrawMoney(acctype,userID,amt);
+				write(nsd,&check,sizeof(check));
 			}
-			else if(select == 3){
+			else if(option2==3){
 				float amt;
-				amt = get_account_balance(account_type, current_user_ID);
-				write(new_server_desc, &amt, sizeof(float));
+				amt = getBalance(acctype,userID);
+				write(nsd,&amt,sizeof(float));
 			}
-			else if(select == 4){
+			else if(option2==4){
 				char pwd[10];
-				read(new_server_desc, pwd, sizeof(pwd));
-				result = change_password(account_type, current_user_ID, pwd);
-				write(new_server_desc, &result, sizeof(result));
+				read(nsd,pwd,sizeof(pwd));
+				check = alterPassword(acctype,userID,pwd);
+				write(nsd,&check,sizeof(check));
 			}
-			else if(select == 5){
-				if(option == 1){
-					normal_user user1 = getNormalUser(current_user_ID);
-					write(new_server_desc, &user1, sizeof(normal_user));
+			else if(option2==5)
+			{
+				//Viewing Details of their respective Accounts
+				if(choice==1)
+				{
+					normalUser user1 = getNU(userID);
+					write(nsd,&user1,sizeof(normalUser));
 				}
-				else if(option == 2){
-					joint_user user2 = getJointUser(current_user_ID);
-					write(new_server_desc, &user2, sizeof(joint_user));
+				else if(choice==2)
+				{
+					jointUser user2 = getJU(userID);
+					write(nsd,&user2,sizeof(jointUser));
 				}
 			}
-			else if(select == 6)	
-				break;
+			else if(option2==6)	break;
 		}
-		else if(option == 3){
-			read(new_server_desc, &type, sizeof(int));
-			if(select == 1){
-				if(type == 1){ //menu for administrator to choose from, adding, modifying, deleting users or searching for specific account details
-					normal_user newUser1;
-					read(new_server_desc, &newUser1, sizeof(normal_user));
-					result = addNormalUser(newUser1);
-					write(new_server_desc, &result, sizeof(result));
+		//For admin
+		else if(choice==3)
+		{
+			read(nsd,&type,sizeof(int));
+			if(option2==1){
+				if(type==1)
+				{
+					normalUser newbie;
+					read(nsd,&newbie,sizeof(normalUser));
+					check=addNormalUser(newbie);
+					write(nsd,&check,sizeof(check));
 				}
-				else if(type == 2){
-					joint_user newUser2;
-					read(new_server_desc, &newUser2, sizeof(joint_user));
-					result = addJointUser(newUser2);
-					write(new_server_desc, &result, sizeof(result));
-				}
-			}
-			else if(select == 2){
-				if(type == 1){
-					int delUserID1;
-					read(new_server_desc, &delUserID1, sizeof(int));
-					result = deleteNormalUser(delUserID1);
-					write(new_server_desc, &result, sizeof(result));
-				}
-				else if(type == 2){
-					int delUserID2;
-					read(new_server_desc, &delUserID2, sizeof(int));
-					result = delete_joint_user(delUserID2);
-					write(new_server_desc, &result, sizeof(result));
+				else if(type==2)
+				{
+					jointUser newbie;
+					read(nsd,&newbie,sizeof(jointUser));
+					check=addJointUser(newbie);
+					write(nsd,&check,sizeof(check));
 				}
 			}
-			else if(select == 3){
-				if(type == 1){
-					normal_user modUser1;
-					read(new_server_desc, &modUser1, sizeof(normal_user));
-					result = modify_normal_user(modUser1);
-					write(new_server_desc, &result, sizeof(result));
+			else if(option2==2)
+			{
+				if(type==1)
+				{
+					int TobeDeleted;
+					read(nsd,&TobeDeleted,sizeof(int));
+					check=deleteNormalUser(TobeDeleted);
+					write(nsd,&check,sizeof(check));
 				}
-				else if(type == 2){
-					joint_user modUser2;
-					read(new_server_desc, &modUser2, sizeof(joint_user));
-					result = modify_joint_user(modUser2);
-					write(new_server_desc, &result, sizeof(result));
+				else if(type==2)
+				{
+					int TobeDeleted;
+					read(nsd,&TobeDeleted,sizeof(int));
+					check=deleteJointUser(TobeDeleted);
+					write(nsd,&check,sizeof(check));
 				}
 			}
-			else if(select == 4){
-				if(type == 1){
-					normal_user searchUser1;
+			else if(option2==3)
+			{
+				if(type==1)
+				{
+					normalUser modUser1;
+					read(nsd,&modUser1,sizeof(normalUser));
+					check=modifyNormalUser(modUser1);
+					write(nsd,&check,sizeof(check));
+				}
+				else if(type==2)
+				{
+					jointUser modUser2;
+					read(nsd,&modUser2,sizeof(jointUser));
+					check=modifyJointUser(modUser2);
+					write(nsd,&check,sizeof(check));
+				}
+			}
+			else if(option2==4)
+			{
+				if(type==1)
+				{
+					normalUser UserSearched;
 					int userID1;
-					read(new_server_desc, &userID1, sizeof(int));
-					searchUser1 = getNormalUser(userID1);
-					write(new_server_desc, &searchUser1, sizeof(normal_user));
+					read(nsd,&userID1,sizeof(int));
+					UserSearched=getNU(userID1);
+					write(nsd,&UserSearched,sizeof(normalUser));
 				}
-				else if(type == 2){
-					joint_user searchUser2;
+				else if(type==2)
+				{
+					jointUser UserSearched;
 					int userID2;
-					read(new_server_desc, &userID2, sizeof(int));
-					searchUser2 = getJointUser(userID2);
-					write(new_server_desc, &searchUser2, sizeof(joint_user));
+					read(nsd,&userID2,sizeof(int));
+					UserSearched=getJU(userID2);
+					write(nsd,&UserSearched,sizeof(jointUser));
 				}
 			}
-			else if(select == 5)	
-				break;
+			else if(option2==5)	break;
 		}
 	}
-	close(new_server_desc);
-	write(1, "Client session over\n", sizeof("Client session over\n"));
+	close(nsd);
+	write(1,"CLIENT SESSION ENDED\n",sizeof("CLIENT SESSION ENDED\n"));
 	return;
 }
 
-void *connection_handler(void *new_server_desc) {
-	int nsfd = *(int*)new_server_desc;
-	serverTask(nsfd);
+void *talktoClient(void *nsd) 
+{
+	int nsd1 = *(int*)nsd;
+	provideService(nsd1);
 }
 
-int main(){
-	struct sockaddr_in server,client;
-	int server_desc, new_server_desc, clientLen;
-	pthread_t threads;
+int main()
+{
+	struct sockaddr_in server, client;
+	int sd, nsd, sizeofcli;
+	pthread_t thread;
 	bool result;
-	server_desc = socket(AF_INET, SOCK_STREAM, 0);
+
+	//AF_INET for internet communication
+	sd=socket(AF_INET,SOCK_STREAM,0);
+
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
 	server.sin_port = htons(5555);
-	bind(server_desc, (struct sockaddr *)&server, sizeof(server));
-	listen(server_desc, 5);
-	write(1, "Waiting for client...\n", sizeof("Waiting for client...\n"));
-	while(1){
-		clientLen = sizeof(client);
-		new_server_desc = accept(server_desc, (struct sockaddr *)&client, &clientLen);
-		write(1, "Connected to client!\n", sizeof("Connected to client!\n"));
-		if(pthread_create(&threads, NULL, connection_handler, (void*) &new_server_desc)<0){
-			perror("Error! Couldn't create thread");
+
+	//Bind -> Listen -> Accept
+	bind(sd,(struct sockaddr *)&server,sizeof(server));
+	listen(sd,5);	
+	
+	//Writing to the terminal 
+	write(1,"Waiting for the Client.....\n",sizeof("Waiting for the Client.....\n"));
+	while(1)
+	{
+		sizeofcli = sizeof(client);
+		nsd = accept(sd,(struct sockaddr *)&client,&sizeofcli);
+		write(1,"\nConnection established with the Client\n",sizeof("\nConnection established with the Client\n"));
+		
+		if(pthread_create(&thread,NULL,talktoClient,(void*)&nsd)<0)
+		{
+			perror("Error while creating the thread!!");
 			return 1;
-		}	
+		}		
 	}
+
 	pthread_exit(NULL);
-	close(server_desc);
+	close(sd);
 	return 0;
 }
